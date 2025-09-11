@@ -61,10 +61,10 @@ fn TcpServerSocket? listen_to(AddrInfo* ai, uint backlog, SocketOption... option
 	return os::socket_error()?;
 }
 
-fn Pair{TcpSocket, TcpSocket}? socket_pair(AIFamily ai_family = os::AF_UNIX, AISockType ai_socktype = os::SOCK_STREAM)
+fn Pair{TcpSocket, TcpSocket}? socket_pair(AIFamily ai_family = os::AF_UNIX, AISockType ai_socktype = os::SOCK_STREAM) @if(!env::WIN32)
 {
 	CInt[2] sockets;
-	isz n = libc::socketpair((CInt) ai_family, (CInt) ai_socktype, 0, &sockets);
+	isz n = os::socketpair((CInt) ai_family, (CInt) ai_socktype, 0, &sockets);
 	if (n < 0) return os::socket_error()?;
 
 	Socket send_sock = { .sock = (net::os::NativeSocket) sockets[0] };
