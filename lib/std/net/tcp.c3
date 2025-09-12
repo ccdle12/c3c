@@ -62,6 +62,8 @@ fn TcpServerSocket? listen_to(AddrInfo* ai, uint backlog, SocketOption... option
 	return os::socket_error()?;
 }
 
+extern fn CInt getsockname(NativeSocket socket, SockAddrPtr address, Socklen_t* address_len);
+
 fn Pair{TcpSocket, TcpSocket}? socket_pair(AIFamily ai_family = os::AF_UNIX, AISockType ai_socktype = os::SOCK_STREAM)
 {
 	$if env::WIN32:
@@ -79,7 +81,7 @@ fn Pair{TcpSocket, TcpSocket}? socket_pair(AIFamily ai_family = os::AF_UNIX, AIS
 		socket.ai_addrlen = listen_socket.ai_addr_storage.len;
 
 		// TODO: Handle error
-		int result = os::getsockname(listen_socket.sock, (SockAddrPtr) &socket.ai_addr_storage, &socket.ai_addrlen);
+		int result = getsockname(listen_socket.sock, (SockAddrPtr) &socket.ai_addr_storage, &socket.ai_addrlen);
 		libc::perror("error code");
 
 		// NOTE:
@@ -90,7 +92,7 @@ fn Pair{TcpSocket, TcpSocket}? socket_pair(AIFamily ai_family = os::AF_UNIX, AIS
 
 		TcpSocket send_sock = tcp::connect_async("127.0.0.1", listen_port)!;
 		TcpSocket recv_sock = tcp::accept(&listen_socket)!;
-		listen_socket.close()!;
+		//listen_socket.close()!;
 	$else
 		CInt[2] sockets;
 		isz n = os::socketpair((CInt) ai_family, (CInt) ai_socktype, 0, &sockets);
