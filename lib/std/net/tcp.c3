@@ -64,18 +64,25 @@ fn TcpServerSocket? listen_to(AddrInfo* ai, uint backlog, SocketOption... option
 
 extern fn CInt getsockname(NativeSocket socket, SockAddrPtr address, Socklen_t* address_len);
 
-fn Pair{TcpSocket, TcpSocket}? socket_pair(AIFamily ai_family = os::AF_UNIX, AISockType ai_socktype = os::SOCK_STREAM)
+struct TcpSocketPair
+{
+    TcpSocket send;
+    TcpSocket recv;
+}
+
+fn TcpSocketPair*? TcpSocketPair.init(&self, AIFamily ai_family = os::AF_UNIX, AISockType ai_socktype = os::SOCK_STREAM)
 {
 	$if env::WIN32:
 		Win32_WORD version = 0x0202;
 
 		char[408] wsa_data;
 		CInt wsa_error = win32::wsaStartup(version, &wsa_data);
-		defer win32::wsaCleanup();
 
 		// TODO: If I close this listening socket at the end of this function,
 		// does connect socket still work?
-		TcpServerSocket listen_socket = tcp::listen("127.0.0.1", 0, 0)!;
+        String local_host = "127.0.0.1";
+		TcpServerSocket listen_socket = tcp::listen(local_host, 0, 0)!!;
+        defer listen_socket.close()!!;
 
 		TcpSocket socket;
 		socket.ai_addrlen = listen_socket.ai_addr_storage.len;
@@ -90,9 +97,8 @@ fn Pair{TcpSocket, TcpSocket}? socket_pair(AIFamily ai_family = os::AF_UNIX, AIS
 		char[] listen_port_view = socket.ai_addr_storage[2:2];
 		int listen_port = (listen_port_view[0] << 8) + listen_port_view[1];
 
-		TcpSocket send_sock = tcp::connect_async("127.0.0.1", listen_port)!;
-		TcpSocket recv_sock = tcp::accept(&listen_socket)!;
-		//listen_socket.close()!;
+		TcpSocket send_sock = tcp::connect_async(local_host, listen_port)!!;
+		TcpSocket recv_sock = tcp::accept(&listen_socket)!!;
 	$else
 		CInt[2] sockets;
 		isz n = os::socketpair((CInt) ai_family, (CInt) ai_socktype, 0, &sockets);
@@ -105,5 +111,16 @@ fn Pair{TcpSocket, TcpSocket}? socket_pair(AIFamily ai_family = os::AF_UNIX, AIS
 		TcpSocket recv_sock = (TcpSocket) r_sock;
 	$endif
 
-	return { .first = send_sock, .second = recv_sock };
+    *self = { .send = send_sock,  .recv = recv_sock };
+    return self;
+}
+
+fn void TcpSocketPair.free(&self)
+{
+    self.send.close()!!;
+    self.recv.close()!!;
+
+    $if env::WIN32:
+        win32::wsaCleanup();
+    $endif
 }
