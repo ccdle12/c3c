@@ -64,49 +64,63 @@ fn TcpServerSocket? listen_to(AddrInfo* ai, uint backlog, SocketOption... option
 
 extern fn CInt getsockname(NativeSocket socket, SockAddrPtr address, Socklen_t* address_len);
 
+// TODO: Is there a better way to do this - create a SocketPair alias or typdef? can I then reference things to free?
 struct TcpSocketPair
 {
     TcpSocket send;
     TcpSocket recv;
 }
 
-fn TcpSocketPair*? TcpSocketPair.init(&self, AIFamily ai_family = os::AF_UNIX, AISockType ai_socktype = os::SOCK_STREAM)
+fn TcpSocketPair*? TcpSocketPair.init(&self)
 {
 	$if env::WIN32:
 		Win32_WORD version = 0x0202;
 
 		char[408] wsa_data;
+
+		// TODO: Handle this error if wsaStartup did not work.
 		CInt wsa_error = win32::wsaStartup(version, &wsa_data);
 
-		// TODO: If I close this listening socket at the end of this function,
-		// does connect socket still work?
-        String local_host = "127.0.0.1";
-		TcpServerSocket listen_socket = tcp::listen(local_host, 0, 0)!!;
-        defer listen_socket.close()!!;
+		TcpServerSocket listen_socket = tcp::listen("127.0.0.1", 0, 0)!;
 
-		TcpSocket socket;
-		socket.ai_addrlen = listen_socket.ai_addr_storage.len;
+		// TODO: Rename this to listen_socket_info?
+		TcpSocket lsocket_info;
+		lsocket_info.ai_addrlen = listen_socket.ai_addr_storage.len;
 
 		// TODO: Handle error
-		int result = getsockname(listen_socket.sock, (SockAddrPtr) &socket.ai_addr_storage, &socket.ai_addrlen);
+		int result = getsockname(listen_socket.sock, (SockAddrPtr) &lsocket_info.ai_addr_storage, &lsocket_info.ai_addrlen);
 		libc::perror("error code");
 
+		// TODO: Is there an in-built way to do this in C??? or maybe an inbuilt function in C3???
 		// NOTE:
 		// lport_view[0] is the most significant byte
 		// lport_view[1] is the least most significant byte
-		char[] listen_port_view = socket.ai_addr_storage[2:2];
+		char[] listen_port_view = lsocket_info.ai_addr_storage[2:2];
 		int listen_port = (listen_port_view[0] << 8) + listen_port_view[1];
 
-		TcpSocket send_sock = tcp::connect_async(local_host, listen_port)!!;
-		TcpSocket recv_sock = tcp::accept(&listen_socket)!!;
+		// TODO: Rethrow these errors.
+		TcpSocket send_sock = tcp::connect_async("127.0.0.1", listen_port)!;
+		TcpSocket recv_sock = tcp::accept(&listen_socket)!;
+
+        listen_socket.close()!;
 	$else
 		CInt[2] sockets;
-		isz n = os::socketpair((CInt) ai_family, (CInt) ai_socktype, 0, &sockets);
+
+		// TODO: Should protocol (os::SOCK_STREAM) be an AI_Protocol instead of CINT?
+		// - It seems like SOCK_STREAM is passed to functions that need an AISockType
+		// - AISockType is probbly an alias for CInt, not sure if I can use that since its supposed to be an external function to  C, but if its an alias, maybe its fine?
+		// - Same with AIFamily which is AF_UNIX, maybe I can use that and I don't need to do an explict cast?
+		isz n = os::socketpair((CInt) os::AF_UNIX, (CInt) os::SOCK_STREAM, 0, &sockets);
+		// TODO: Is this the right error to throw?
+		// TODO: Maybe we need to make the errors a lot more detailed? e.g. certain numbers mean certain things?
 		if (n < 0) return os::socket_error()?;
 
+		// TODO: This needs to be renamed, s_sock isn't enough detail
+		// - It's going from CInt -> os::NativeSocket -> Socket -> TcpSocket
 		Socket s_sock = { .sock = (net::os::NativeSocket) sockets[0] };
 		TcpSocket send_sock = (TcpSocket) s_sock;
 
+		// TODO: This needs to be renamed, r_sock isn't enough detail
 		Socket r_sock = { .sock = (net::os::NativeSocket) sockets[1] };
 		TcpSocket recv_sock = (TcpSocket) r_sock;
 	$endif
@@ -117,6 +131,7 @@ fn TcpSocketPair*? TcpSocketPair.init(&self, AIFamily ai_family = os::AF_UNIX, A
 
 fn void TcpSocketPair.free(&self)
 {
+	// TODO: Rethrow this error.
     self.send.close()!!;
     self.recv.close()!!;
 
