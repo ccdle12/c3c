@@ -62,10 +62,6 @@ fn TcpServerSocket? listen_to(AddrInfo* ai, uint backlog, SocketOption... option
 	return os::socket_error()?;
 }
 
-// TODO: Move this to /std/net/os/common.c3
-// - Do I need to use `@if(SUPPORTS_INET)`?
-// - What is SUPPORTS_INET?
-extern fn CInt getsockname(NativeSocket socket, SockAddrPtr address, Socklen_t* address_len);
 
 // TODO: Is there a better way to do this - create a SocketPair alias or typdef? can I then reference things to free?
 struct TcpSocketPair
@@ -96,6 +92,7 @@ fn TcpSocketPair*? TcpSocketPair.init(&self)
 
 		// TODO: Handle error
 		// - What are the errors that need to be handled?
+		// - Catch error, close listen socket and return error.
 		int result = getsockname(listen_socket.sock, (SockAddrPtr) &lsocket_info.ai_addr_storage, &lsocket_info.ai_addrlen);
 		libc::perror("error code");
 
@@ -107,6 +104,8 @@ fn TcpSocketPair*? TcpSocketPair.init(&self)
 		char[] listen_port_view = lsocket_info.ai_addr_storage[2:2];
 		int listen_port = (listen_port_view[0] << 8) + listen_port_view[1];
 
+		// TODO:
+		// - Catch errors and close listening socket and return error.
 		TcpSocket send_sock = tcp::connect_async("127.0.0.1", listen_port)!;
 		TcpSocket recv_sock = tcp::accept(&listen_socket)!;
 
@@ -138,6 +137,9 @@ fn TcpSocketPair*? TcpSocketPair.init(&self)
     return self;
 }
 
+// TODO: Can this lead to double frees?
+// - Call free twice
+// - Call close on send manually and then call free again.
 fn void TcpSocketPair.free(&self)
 {
 	// TODO: Rethrow this error.
