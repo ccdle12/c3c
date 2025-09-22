@@ -7,7 +7,6 @@ extern fn CInt shutdown(Fd sockfd, CInt how);
 
 extern fn isz recv(Fd socket, void *buffer, usz length, CInt flags);
 extern fn isz send(Fd socket, void *buffer, usz length, CInt flags);
-extern fn isz socketpair(CInt domain, CInt type, CInt protocol, CInt[2]* sv);
 
 extern fn void* dlopen(ZString path, int flags);
 extern fn CInt dlclose(void*);
