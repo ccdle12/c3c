@@ -57,10 +57,6 @@ extern fn CInt getaddrinfo(ZString nodename, ZString servname, AddrInfo* hints, 
 extern fn void freeaddrinfo(AddrInfo* res) @if(SUPPORTS_INET);
 extern fn CInt setsockopt(NativeSocket socket, CInt level, CInt optname, void* optval, Socklen_t optlen) @if(SUPPORTS_INET);
 extern fn CInt getsockopt(NativeSocket socket, CInt level, CInt optname, void* optval, Socklen_t optlen) @if(SUPPORTS_INET);
-// TODO:
-// - Do I need to use `@if(SUPPORTS_INET)`?
-// - What is SUPPORTS_INET?
-extern fn CInt getsockname(NativeSocket socket, SockAddrPtr address, Socklen_t* address_len);
 
 module std::net::os @if(!env::LIBC || !(env::WIN32 || env::DARWIN || env::LINUX || env::ANDROID));
 
