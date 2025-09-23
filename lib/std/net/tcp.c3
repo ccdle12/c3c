@@ -91,15 +91,19 @@ fn TcpSocketPair*? TcpSocketPair.init(&self)
 		// TODO: Handle error
 		// - What are the errors that need to be handled?
 		// - Catch error, close listen socket and return error.
-		int result = getsockname(listen_sock.sock, (SockAddrPtr) &listen_sock_info.ai_addr_storage, &listen_sock_info.ai_addrlen);
+		int result = os::getsockname(listen_socket.sock, (SockAddrPtr) &listen_sock_info.ai_addr_storage,  &listen_sock_info.ai_addrlen);
 		libc::perror("error code");
 
-		// TODO: Is there an in-built way to do this in C??? or maybe an inbuilt function in C3???
 		// NOTE:
 		// lport_view[0] is the most significant byte
 		// lport_view[1] is the least most significant byte
+		//char[] listen_port_bytes = listen_sock_info.ai_addr_storage[2:2];
+		//int listen_port = (listen_port_bytes[0] << 8) + listen_port_bytes[1];
+
 		char[] listen_port_bytes = listen_sock_info.ai_addr_storage[2:2];
-		int listen_port = (listen_port_bytes[0] << 8) + listen_port_bytes[1];
+		char msb = listen_port_bytes[0];
+		char lsb = listen_port_bytes[1];
+		int listen_port = (msb << 8) | lsb;
 
 		// TODO:
 		// - Catch errors and close listening socket and return error.
