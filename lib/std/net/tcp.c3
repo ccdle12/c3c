@@ -79,26 +79,16 @@ fn TcpSocketPair*? TcpSocketPair.init(&self)
 		// something indicating its a variable that is unused?
 		char[408] wsa_data;
 
-		// TODO: Handle this error if wsaStartup did not work.
-		// - What the errors I need to handle?
 		CInt wsa_error = win32::wsaStartup(version, &wsa_data);
+		if (wsa_error > 0) return os::socket_error()?;
 
 		TcpServerSocket listen_sock = tcp::listen("127.0.0.1", 0, 0)!;
 
 		TcpSocket listen_sock_info;
 		listen_sock_info.ai_addrlen = listen_sock.ai_addr_storage.len;
 
-		// TODO: Handle error
-		// - What are the errors that need to be handled?
-		// - Catch error, close listen socket and return error.
 		int result = os::getsockname(listen_socket.sock, (SockAddrPtr) &listen_sock_info.ai_addr_storage,  &listen_sock_info.ai_addrlen);
-		libc::perror("error code");
-
-		// NOTE:
-		// lport_view[0] is the most significant byte
-		// lport_view[1] is the least most significant byte
-		//char[] listen_port_bytes = listen_sock_info.ai_addr_storage[2:2];
-		//int listen_port = (listen_port_bytes[0] << 8) + listen_port_bytes[1];
+		if (result < 0) return os::socket_error()?;
 
 		char[] listen_port_bytes = listen_sock_info.ai_addr_storage[2:2];
 		char msb = listen_port_bytes[0];
@@ -115,8 +105,8 @@ fn TcpSocketPair*? TcpSocketPair.init(&self)
 	$else
 		CInt[2] sockets;
 
-		// TODO: Should protocol (os::SOCK_STREAM) be an AI_Protocol instead of CINT?
-		// - It seems like SOCK_STREAM is passed to functions that need an AISockType
+		// TODO: Should protocol (os::SOCK_STREAM) be an AISockType instead of CINT?
+		// - It seems like SOCK_STREAM is passed to functions that need an AISockTypel
 		// - AISockType is probbly an alias for CInt, not sure if I can use that since its supposed to be an external function to  C, but if its an alias, maybe its fine?
 		// - Same with AIFamily which is AF_UNIX, maybe I can use that and I don't need to do an explict cast?
 		isz n = os::socketpair((CInt) os::AF_UNIX, (CInt) os::SOCK_STREAM, 0, &sockets);
@@ -125,6 +115,10 @@ fn TcpSocketPair*? TcpSocketPair.init(&self)
 		if (n < 0) return os::socket_error()?;
 
 		// TODO: This needs to be renamed, s_sock isn't enough detail
+		// Maybe:
+		// - Socket send_sock
+		// - TcpSocket tcp_send_sock
+		//
 		// - It's going from CInt -> os::NativeSocket -> Socket -> TcpSocket
 		Socket s_sock = { .sock = (net::os::NativeSocket) sockets[0] };
 		TcpSocket send_sock = (TcpSocket) s_sock;
