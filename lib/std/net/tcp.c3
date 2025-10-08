@@ -87,7 +87,7 @@ fn TcpSocketPair*? TcpSocketPair.init(&self)
 		TcpSocket listen_sock_info;
 		listen_sock_info.ai_addrlen = listen_sock.ai_addr_storage.len;
 
-		int result = os::getsockname(listen_socket.sock, (SockAddrPtr) &listen_sock_info.ai_addr_storage,  &listen_sock_info.ai_addrlen);
+		int result = os::getsockname(listen_sock.sock, (SockAddrPtr) &listen_sock_info.ai_addr_storage,  &listen_sock_info.ai_addrlen);
 		if (result < 0) return os::socket_error()?;
 
 		char[] listen_port_bytes = listen_sock_info.ai_addr_storage[2:2];
