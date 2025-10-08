@@ -87,7 +87,6 @@ fn TcpSocketPair*? TcpSocketPair.init(&self)
 		TcpSocket listen_sock_info;
 		listen_sock_info.ai_addrlen = listen_sock.ai_addr_storage.len;
 
-		// TODO: Rename result to something more accurate
 		int sock_result = os::getsockname(listen_sock.sock, (SockAddrPtr) &listen_sock_info.ai_addr_storage,  &listen_sock_info.ai_addrlen);
 		if (sock_result < 0) return os::socket_error()?;
 
@@ -96,37 +95,23 @@ fn TcpSocketPair*? TcpSocketPair.init(&self)
 		char lsb = listen_port_bytes[1];
 		int listen_port = (msb << 8) | lsb;
 
-		TcpSocket send_sock = tcp::connect_async("127.0.0.1", listen_port)!;
-		TcpSocket recv_sock = tcp::accept(&listen_sock)!;
+		TcpSocket tcp_send_sock = tcp::connect_async("127.0.0.1", listen_port)!;
+		TcpSocket tcp_recv_sock = tcp::accept(&listen_sock)!;
 
         listen_sock.close()!;
 	$else
-		CInt[2] sockets;
+		NativeSocket[2] sockets;
+		isz sockpair_result = os::socketpair(os::AF_UNIX, os::SOCK_STREAM, 0, &sockets);
+		if (sockpair_result < 0) return os::socket_error()?;
 
-		// TODO: Should protocol (os::SOCK_STREAM) be an AISockType instead of CINT?
-		// - It seems like SOCK_STREAM is passed to functions that need an AISockTypel
-		// - AISockType is probbly an alias for CInt, not sure if I can use that since its supposed to be an external function to  C, but if its an alias, maybe its fine?
-		// - Same with AIFamily which is AF_UNIX, maybe I can use that and I don't need to do an explict cast?
-		isz n = os::socketpair((CInt) os::AF_UNIX, (CInt) os::SOCK_STREAM, 0, &sockets);
-		// TODO: Is this the right error to throw?
-		// TODO: Maybe we need to make the errors a lot more detailed? e.g. certain numbers mean certain things?
-		if (n < 0) return os::socket_error()?;
+		Socket send_sock = { .sock = sockets[0] };
+		TcpSocket tcp_send_sock = (TcpSocket) send_sock;
 
-		// TODO: This needs to be renamed, s_sock isn't enough detail
-		// Maybe:
-		// - Socket send_sock
-		// - TcpSocket tcp_send_sock
-		//
-		// - It's going from CInt -> os::NativeSocket -> Socket -> TcpSocket
-		Socket s_sock = { .sock = (net::os::NativeSocket) sockets[0] };
-		TcpSocket send_sock = (TcpSocket) s_sock;
-
-		// TODO: This needs to be renamed, r_sock isn't enough detail
-		Socket r_sock = { .sock = (net::os::NativeSocket) sockets[1] };
-		TcpSocket recv_sock = (TcpSocket) r_sock;
+		Socket recv_sock = { .sock = sockets[1] };
+		TcpSocket tcp_recv_sock = (TcpSocket) recv_sock;
 	$endif
 
-    *self = { .send = send_sock,  .recv = recv_sock };
+    *self = { .send = tcp_send_sock,  .recv = tcp_recv_sock };
     return self;
 }
 
