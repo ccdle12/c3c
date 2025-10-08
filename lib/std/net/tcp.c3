@@ -81,43 +81,24 @@ fn TcpSocketPair*? TcpSocketPair.init(&self)
 
 		CInt wsa_error = win32::wsaStartup(version, &wsa_data);
 		if (wsa_error > 0) return os::socket_error()?;
-		defer (catch err)
-		{
-			win32::wsaCleanup();
-		}
 
 		TcpServerSocket listen_sock = tcp::listen("127.0.0.1", 0, 0)!;
-		defer (catch err)
-		{
-			listen_sock.close()!;
-		}
 
 		TcpSocket listen_sock_info;
 		listen_sock_info.ai_addrlen = listen_sock.ai_addr_storage.len;
 
 		// TODO: Rename result to something more accurate
-		int result = os::getsockname(listen_sock.sock, (SockAddrPtr) &listen_sock_info.ai_addr_storage,  &listen_sock_info.ai_addrlen);
-		if (result < 0) return os::socket_error()?;
+		int sock_result = os::getsockname(listen_sock.sock, (SockAddrPtr) &listen_sock_info.ai_addr_storage,  &listen_sock_info.ai_addrlen);
+		if (sock_result < 0) return os::socket_error()?;
 
 		char[] listen_port_bytes = listen_sock_info.ai_addr_storage[2:2];
 		char msb = listen_port_bytes[0];
 		char lsb = listen_port_bytes[1];
 		int listen_port = (msb << 8) | lsb;
 
-		// TODO: 2025.10.08 - defer catch send_sock
 		TcpSocket send_sock = tcp::connect_async("127.0.0.1", listen_port)!;
-		defer (catch err)
-		{
-			send_sock.close()!;
-		}
-		// TODO: 2025.10.08 - defer catch recv_sock
 		TcpSocket recv_sock = tcp::accept(&listen_sock)!;
-		defer (catch err)
-		{
-			recv_sock.close()!;
-		}
 
-		// TODO: 2025.10.08 - defer catch close
         listen_sock.close()!;
 	$else
 		CInt[2] sockets;
