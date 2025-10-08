@@ -89,7 +89,7 @@ fn TcpSocketPair*? TcpSocketPair.init(&self)
 		TcpServerSocket listen_sock = tcp::listen("127.0.0.1", 0, 0)!;
 		defer (catch err)
 		{
-			listen_sock.close();
+			listen_sock.close()!;
 		}
 
 		TcpSocket listen_sock_info;
@@ -108,13 +108,13 @@ fn TcpSocketPair*? TcpSocketPair.init(&self)
 		TcpSocket send_sock = tcp::connect_async("127.0.0.1", listen_port)!;
 		defer (catch err)
 		{
-			send_sock.close();
+			send_sock.close()!;
 		}
 		// TODO: 2025.10.08 - defer catch recv_sock
 		TcpSocket recv_sock = tcp::accept(&listen_sock)!;
 		defer (catch err)
 		{
-			recv_sock.close();
+			recv_sock.close()!;
 		}
 
 		// TODO: 2025.10.08 - defer catch close
